@@ -64,7 +64,9 @@ class GameMap:
         tipos_inimigos_data = [
             {'tipo': 'Goblin', 'vida': 20, 'ataque': 8, 'defesa': 3, 'xp': 15, 'ouro': 10},
             {'tipo': 'Esqueleto', 'vida': 30, 'ataque': 10, 'defesa': 5, 'xp': 25, 'ouro': 15},
-            {'tipo': 'Orc', 'vida': 50, 'ataque': 15, 'defesa': 8, 'xp': 40, 'ouro': 25}
+            {'tipo': 'Orc', 'vida': 50, 'ataque': 15, 'defesa': 8, 'xp': 40, 'ouro': 25},
+            {'tipo': 'Morto-Vivo', 'vida': 35, 'ataque':12, 'defesa':2, 'xp':30, 'ouro': 22},
+            {'tipo': 'Slime', 'vida':100, 'ataque': 3, 'defesa': 1, 'xp':17, 'ouro':0}
         ]
 
         if tem_chefao:

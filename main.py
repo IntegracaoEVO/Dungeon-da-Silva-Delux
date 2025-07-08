@@ -45,6 +45,33 @@ class JogoRPG:
 
         self._mostrar_historico()
 
+    def _mostrar_loja(self):
+        print("=== LOJA DO MERCADOR ===")
+        print(f"Seu ouro: {self.player.ouro}")
+    
+        itens = {
+            "1": {"nome": "Poção de Vida", "preco": 10, "tipo": "consumivel"},
+            "2": {"nome": "Poção de Ataque", "preco": 15, "tipo": "consumivel"},
+            "3": {"nome": "Pergaminho Mágico", "preco": 25, "tipo": "habilidade"}
+        }
+        
+        for cod, item in itens.items():
+            print(f"{cod}. {item['nome']} - {item['preco']} ouro")
+        
+            print("0. Sair")
+        
+        while True:
+            opcao = input("Escolha uma opção: ")
+            if opcao == '0':
+                print("Saindo da loja...")
+                break
+            elif opcao in itens:
+                self._comprar_item(itens[opcao])
+                break
+            else:
+                print("Opção inválida! Tente novamente.")
+
+
     def _mostrar_mapa(self):
         print(f"=== Dungeon Nível {self.game_map.dungeon_nivel} ===")
         print(f"Vida: {self.player.vida}/{self.player.vida_max} | Nível: {self.player.nivel} | XP: {self.player.xp}/{self.player.nivel*100}")
@@ -81,27 +108,7 @@ class JogoRPG:
         print("\nMissões:")
         for missao in self.mission_system.get_active_missions():
             print(f"- {missao['objetivo']} ({missao['quantidade']}/{missao['alvo']})")
-
-    def _mostrar_combate(self):
-        inimigo = self.combat_system.current_enemy
-        if not inimigo:
-            self.game_state.log_mensagem("Erro: Nenhum inimigo em combate.")
-            self.game_state.set_state("explorando")
-            return
-
-        print(f"=== COMBATE vs {inimigo.tipo} ===")
-        print(f"Sua Vida: {self.player.vida}/{self.player.vida_max}")
-        print(f"Inimigo Vida: {inimigo.vida}/{inimigo.vida_max}")
-
-        print("\nAções:")
-        print("1. Atacar")
-        print("2. Usar Habilidade")
-        print("3. Usar Item")
-        print("4. Fugir (50% chance)")
-
-        if inimigo.chefao:
-            print("\nDICA: Este é um chefão! Use itens e habilidades com cuidado!")
-
+    
     def _mostrar_menu(self):
         print("=== MENU ===")
         print(f"Classe: {self.player.classe or 'Nenhuma'}")
@@ -113,7 +120,6 @@ class JogoRPG:
         print(f"Ouro: {self.player.ouro}")
 
         print("\nHabilidades:")
-        # Itera sobre os itens do dicionário para mostrar nome e cooldown
         for idx, (nome_hab, dados_hab) in enumerate(self.player.habilidades.items(), 1):
             cooldown_info = f" (CD: {dados_hab['cooldown']})" if dados_hab['cooldown'] > 0 else ""
             print(f"{idx}. {nome_hab}{cooldown_info}")
@@ -124,21 +130,85 @@ class JogoRPG:
         else:
             for item, qtd in self.player.inventario.items():
                 print(f"- {item}: {qtd}")
-
+                
         print("\n1. Usar Poção de Vida")
         print("2. Usar Poção de Ataque")
         if not self.player.classe:
             print("3. Escolher Classe (uma vez)")
         print("0. Voltar")
 
-    def _mostrar_loja(self):
-        print("=== LOJA DO MERCADOR ===")
-        print(f"Ouro: {self.player.ouro}")
 
-        for idx, item in enumerate(self.shop_system.get_shop_items(), 1):
-            print(f"{idx}. {item.nome} - {item.preco} ouro")
+    def _mostrar_combate(self):
+        inimigo = self.combat_system.current_enemy
+        if not inimigo:
+            return
 
-        print("\n0. Voltar")
+        # Sprite do jogador (simplificado)
+        player_sprite = [
+            "  O  ",
+            " /|\\ ",
+            " / \\ "
+        ]
+        
+        # Sprite do inimigo (varia por tipo)
+        enemy_sprite = {
+            'Goblin': [
+                "  G  ",
+                " /|\\ ",
+                " | | "
+            ],
+            'Orc': [
+                " _O_ ",
+                "| o |",
+                "|___|"
+            ],
+            'Dragão': [
+                " .^. ",
+                "/O O\\",
+                " > < "
+            ],
+            'Morto-Vivo': [
+                " x_x ",
+                " |\\| ",
+                " / \\ "
+            ],
+            'Slime':[
+                "     ",
+                " ~~~ ",
+                "(o_o)"
+            ]
+        }
+
+        # Obter o sprite do inimigo com base no tipo
+        enemy_sprite_lines = enemy_sprite.get(inimigo.tipo, [
+            " ? ",
+            "/|\\",
+            " | "
+        ])
+
+        # Barra de vida do jogador
+        vida_jogador = f"Jogador: [{'#' * int(10 * self.player.vida/self.player.vida_max)}{' ' * (10 - int(10 * self.player.vida/self.player.vida_max))}] {self.player.vida}/{self.player.vida_max}"
+        
+        # Barra de vida do inimigo
+        vida_inimigo = f"Inimigo: [{'#' * int(10 * inimigo.vida/inimigo.vida_max)}{' ' * (10 - int(10 * inimigo.vida/inimigo.vida_max))}] {inimigo.vida}/{inimigo.vida_max}"
+
+        # Exibir interface
+        print("\n=== COMBATE ===")
+        print("Jogador".center(20) + "VS".center(10) + inimigo.tipo.center(20))
+        
+        # Exibir sprites lado a lado
+        for p_line, e_line in zip(player_sprite, enemy_sprite_lines):
+            print(p_line.center(20) + "".center(10) + e_line.center(20))
+        
+        print("\n" + vida_jogador)
+        print(vida_inimigo + "\n")
+        
+        print("\nAções:")
+        print("1. Atacar")
+        print("2. Usar Habilidade")
+        print("3. Usar Item")
+        print("4. Fugir (50% chance)")
+
 
     def _mostrar_vitoria(self):
         print("=== VITÓRIA EPICA ===")
