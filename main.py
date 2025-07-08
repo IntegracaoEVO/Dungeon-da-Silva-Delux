@@ -13,17 +13,6 @@ from systems.shop_system import ShopSystem
 from game_map import GameMap
 from game_state import GameState
 
-# Para Linux/Mac, substitua msvcrt por:
-# def getch():
-#     fd = sys.stdin.fileno()
-#     old_settings = termios.tcgetattr(fd)
-#     try:
-#         tty.setraw(sys.stdin.fileno())
-#         ch = sys.stdin.read(1)
-#     finally:
-#         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-#     return ch.encode('utf-8') # Retorna bytes para compatibilidade
-
 class JogoRPG:
     def __init__(self):
         self.player = Player()
@@ -124,8 +113,10 @@ class JogoRPG:
         print(f"Ouro: {self.player.ouro}")
 
         print("\nHabilidades:")
-        for idx, hab in enumerate(self.player.habilidades, 1):
-            print(f"{idx}. {hab}")
+        # Itera sobre os itens do dicionário para mostrar nome e cooldown
+        for idx, (nome_hab, dados_hab) in enumerate(self.player.habilidades.items(), 1):
+            cooldown_info = f" (CD: {dados_hab['cooldown']})" if dados_hab['cooldown'] > 0 else ""
+            print(f"{idx}. {nome_hab}{cooldown_info}")
 
         print("\nInventário:")
         if not self.player.inventario:
@@ -153,8 +144,12 @@ class JogoRPG:
         print("=== VITÓRIA EPICA ===")
         print(f"Parabéns! Você derrotou o chefão da dungeon nível {self.game_map.dungeon_nivel}!")
         print("\nRecompensas:")
-        print(f"- {self.combat_system.current_enemy.xp} XP")
-        print(f"- {self.combat_system.current_enemy.ouro} de ouro")
+        # Acessa XP e Ouro do inimigo derrotado
+        if self.combat_system.current_enemy:
+            print(f"- {self.combat_system.current_enemy.xp} XP")
+            print(f"- {self.combat_system.current_enemy.ouro} de ouro")
+        else:
+            print("- Recompensas já coletadas ou inimigo não definido.")
         print("\nPressione qualquer tecla para continuar explorando...")
 
     def _mostrar_historico(self):
@@ -192,6 +187,8 @@ class JogoRPG:
 
         if inimigo:
             self.game_state.set_state(self.combat_system.iniciar_combate(inimigo))
+            # Reduzir cooldowns ao iniciar combate (opcional, dependendo da sua lógica de turno)
+            self.player.reduzir_cooldown() 
             return
         elif item:
             self.player.coletar_item(item, self.game_state.log_mensagem, self.mission_system.atualizar_missao)
@@ -202,9 +199,14 @@ class JogoRPG:
             self.game_map.dungeon_nivel += 1
             self.game_state.log_mensagem(f"Descendo para a dungeon nível {self.game_map.dungeon_nivel}...")
             self.game_map.gerar_dungeon(self.player)
+            # Reduzir cooldowns ao mudar de nível (opcional)
+            self.player.reduzir_cooldown()
             return
 
         self.player.x, self.player.y = novo_x, novo_y
+        # Reduzir cooldowns a cada movimento (se quiser um cooldown baseado em "passos")
+        # self.player.reduzir_cooldown()
+
 
     def game_over(self):
         self.game_state.clear_screen()
@@ -248,8 +250,13 @@ class JogoRPG:
                     self.mover_jogador('esquerda')
                 elif tecla == 'd':
                     self.mover_jogador('direita')
+                # Reduzir cooldowns após cada ação de exploração (se não for por movimento)
+                # self.player.reduzir_cooldown()
 
             elif current_state == "combate":
+                # Reduzir cooldowns no início do turno do jogador em combate
+                self.player.reduzir_cooldown() 
+
                 if tecla == '1':
                     new_state = self.combat_system.resolver_combate_acao('atacar')
                     self.game_state.set_state(new_state)
@@ -284,26 +291,44 @@ class JogoRPG:
                 self.game_state.set_state("explorando")
 
     def _menu_habilidades_combate(self):
-        if not self.player.habilidades:
+        # Pega apenas os nomes das habilidades para exibir no menu de seleção
+        habilidades_nomes = list(self.player.habilidades.keys())
+
+        if not habilidades_nomes:
             self.game_state.log_mensagem("Você não tem habilidades!")
             return
 
         while True:
             self.game_state.clear_screen()
             print("=== HABILIDADES ===")
-            for idx, hab in enumerate(self.player.habilidades, 1):
-                print(f"{idx}. {hab}")
+            # Exibe o nome da habilidade e o cooldown
+            for idx, nome_hab in enumerate(habilidades_nomes, 1):
+                dados_hab = self.player.habilidades[nome_hab]
+                cooldown_info = f" (CD: {dados_hab['cooldown']})" if dados_hab['cooldown'] > 0 else ""
+                print(f"{idx}. {nome_hab}{cooldown_info}")
             print("0. Voltar")
 
             opcao = msvcrt.getch().decode('utf-8')
 
             if opcao == '0':
                 break
-            elif opcao.isdigit() and 1 <= int(opcao) <= len(self.player.habilidades):
-                habilidade = self.player.habilidades[int(opcao)-1]
-                new_state = self.combat_system.aplicar_habilidade(habilidade)
-                self.game_state.set_state(new_state)
-                break
+            elif opcao.isdigit() and 1 <= int(opcao) <= len(habilidades_nomes):
+                habilidade_selecionada_nome = habilidades_nomes[int(opcao)-1]
+                
+                # Verifica se a habilidade pode ser usada (cooldown)
+                if self.player.pode_usar_habilidade(habilidade_selecionada_nome):
+                    new_state = self.combat_system.aplicar_habilidade(habilidade_selecionada_nome)
+                    # Se a habilidade foi usada com sucesso, aplica o cooldown
+                    if new_state == "combate" or new_state == "explorando" or new_state == "vitoria": # Habilidade resultou em um estado válido
+                        self.player.usar_habilidade(habilidade_selecionada_nome) # Aplica o cooldown
+                    self.game_state.set_state(new_state)
+                    break
+                else:
+                    self.game_state.log_mensagem(f"{habilidade_selecionada_nome} está em cooldown! ({self.player.habilidades[habilidade_selecionada_nome]['cooldown']} turnos restantes)")
+                    # Não quebra o loop, permite que o jogador escolha outra habilidade ou volte
+            else:
+                self.game_state.log_mensagem("Opção inválida!")
+
 
     def _menu_itens_combate(self):
         if not any(qtd > 0 for qtd in self.player.inventario.values()):

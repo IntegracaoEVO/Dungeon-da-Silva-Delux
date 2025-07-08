@@ -1,6 +1,8 @@
 import random
 
 class CombatSystem:
+    # Removida a primeira definição vazia de aplicar_habilidade
+
     def __init__(self, player, log_callback, game_over_callback, mission_system_callback):
         self.player = player
         self.log_mensagem = log_callback
@@ -76,13 +78,13 @@ class CombatSystem:
             self.player.verificar_subir_nivel(self.log_mensagem)
         return "explorando"
 
-    def aplicar_habilidade(self, habilidade):
+    def aplicar_habilidade(self, habilidade_nome): # Renomeado para habilidade_nome para clareza
         inimigo = self.current_enemy
         jogador = self.player
 
-        if habilidade == 'Ataque Básico':
+        if habilidade_nome == 'Ataque Básico':
             return self.resolver_combate_acao('atacar')
-        elif habilidade == 'Golpe Poderoso':
+        elif habilidade_nome == 'Golpe Poderoso':
             dano = max(1, jogador.ataque * 2 - inimigo.defesa // 2)
             inimigo.vida -= dano
             self.log_mensagem(f"Golpe Poderoso! Causou {dano} de dano!")
@@ -97,7 +99,7 @@ class CombatSystem:
                     self.game_over()
                     return "game_over"
                 return "combate"
-        elif habilidade == 'Bola de Fogo':
+        elif habilidade_nome == 'Bola de Fogo':
             dano = max(1, jogador.ataque * 3 - inimigo.defesa // 4)
             inimigo.vida -= dano
             self.log_mensagem(f"Bola de Fogo! Causou {dano} de dano!")
@@ -112,7 +114,7 @@ class CombatSystem:
                     self.game_over()
                     return "game_over"
                 return "combate"
-        elif habilidade == 'Cura Rápida':
+        elif habilidade_nome == 'Cura Rápida':
             cura = 25
             jogador.vida = min(jogador.vida + cura, jogador.vida_max)
             self.log_mensagem(f"Cura Rápida! Recuperou {cura} de vida!")
@@ -125,6 +127,56 @@ class CombatSystem:
                 self.game_over()
                 return "game_over"
             return "combate"
+        elif habilidade_nome == 'Chuva de Flechas': # Adicionando a lógica para Chuva de Flechas
+            dano = max(1, jogador.ataque * 1.5 - inimigo.defesa // 3) # Dano médio
+            inimigo.vida -= dano
+            self.log_mensagem(f"Chuva de Flechas! Causou {dano} de dano!")
+
+            if inimigo.vida <= 0:
+                return self._derrotar_inimigo(inimigo)
+            else:
+                dano_inimigo = max(1, inimigo.ataque - jogador.defesa // 2)
+                jogador.vida -= dano_inimigo
+                self.log_mensagem(f"{inimigo.tipo} contra-atacou causando {dano_inimigo} de dano!")
+                if jogador.vida <= 0:
+                    self.game_over()
+                    return "game_over"
+                return "combate"
+        elif habilidade_nome == 'Golpe Crítico': # Adicionando a lógica para Golpe Crítico
+            dano = max(1, jogador.ataque * 2.5 - inimigo.defesa // 2) # Dano alto
+            self.log_mensagem("Você prepara um Golpe Crítico!")
+            if random.random() < 0.7: # 70% de chance de acertar
+                inimigo.vida -= dano
+                self.log_mensagem(f"Golpe Crítico acertou! Causou {dano} de dano!")
+            else:
+                self.log_mensagem("Golpe Crítico falhou!")
+
+            if inimigo.vida <= 0:
+                return self._derrotar_inimigo(inimigo)
+            else:
+                dano_inimigo = max(1, inimigo.ataque - jogador.defesa // 2)
+                jogador.vida -= dano_inimigo
+                self.log_mensagem(f"{inimigo.tipo} contra-atacou causando {dano_inimigo} de dano!")
+                if jogador.vida <= 0:
+                    self.game_over()
+                    return "game_over"
+                return "combate"
+        elif habilidade_nome == 'Ataque Duplo': # Adicionando a lógica para Ataque Duplo
+            dano1 = max(1, jogador.ataque - inimigo.defesa // 2)
+            dano2 = max(1, jogador.ataque - inimigo.defesa // 2)
+            inimigo.vida -= (dano1 + dano2)
+            self.log_mensagem(f"Ataque Duplo! Causou {dano1} + {dano2} = {dano1 + dano2} de dano!")
+
+            if inimigo.vida <= 0:
+                return self._derrotar_inimigo(inimigo)
+            else:
+                dano_inimigo = max(1, inimigo.ataque - jogador.defesa // 2)
+                jogador.vida -= dano_inimigo
+                self.log_mensagem(f"{inimigo.tipo} contra-atacou causando {dano_inimigo} de dano!")
+                if jogador.vida <= 0:
+                    self.game_over()
+                    return "game_over"
+                return "combate"
         else:
             self.log_mensagem("Habilidade não implementada!")
             return "combate"
