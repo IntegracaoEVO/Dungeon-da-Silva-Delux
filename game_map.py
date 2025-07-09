@@ -54,14 +54,23 @@ class GameMap:
                 self.mapa[y][x2] = '.'
 
     def _gerar_entidades(self, salas):
+        
         self.inimigos = []
         self.itens = []
         self.portais = []
         self.npcs = []
+        
 
-        tem_chefao = self.dungeon_nivel % 5 == 0
+        # Lógica para chefão principal da dungeon (a cada 5 níveis)
+        tem_chefao_principal = self.dungeon_nivel % 5 == 0
 
-        tipos_inimigos_data = [
+        #fator de escalonamento
+        fator_poder = 1 + (self.dungeon_nivel * 0.3)
+
+        # Lógica para mini-chefes (a cada 2 níveis, exceto nos níveis de chefão principal)
+        tem_mini_chefao = self.dungeon_nivel % 2 == 0 and not tem_chefao_principal
+
+        inimigos_base = [
             {'tipo': 'Goblin', 'vida': 20, 'ataque': 8, 'defesa': 3, 'xp': 15, 'ouro': 10},
             {'tipo': 'Esqueleto', 'vida': 30, 'ataque': 10, 'defesa': 5, 'xp': 25, 'ouro': 15},
             {'tipo': 'Orc', 'vida': 50, 'ataque': 15, 'defesa': 8, 'xp': 40, 'ouro': 25},
@@ -69,18 +78,39 @@ class GameMap:
             {'tipo': 'Slime', 'vida':100, 'ataque': 3, 'defesa': 1, 'xp':17, 'ouro':0}
         ]
 
-        if tem_chefao:
-            chefao_data = {
-                'tipo': 'DRAGÃO',
-                'vida': 100 * self.dungeon_nivel,
-                'ataque': 20 * self.dungeon_nivel,
-                'defesa': 15 * self.dungeon_nivel,
-                'xp': 200 * self.dungeon_nivel,
-                'ouro': 100 * self.dungeon_nivel,
-                'chefao': True
-            }
-            self.inimigos.append(self._criar_entidade(Enemy, chefao_data, forcado=True))
+        # Aplicar fator_poder CORRETAMENTE AGORA DIABO:
+        tipos_inimigos_data = []
+        for inimigo in inimigos_base:
+            inimigo_escalado = inimigo.copy()  # Cria uma cópia
+            for atributo in ['vida', 'ataque', 'defesa', 'xp', 'ouro']:  # Este loop DEVE estar DENTRO do anterior
+                inimigo_escalado[atributo] = int(inimigo[atributo] * fator_poder)
+            tipos_inimigos_data.append(inimigo_escalado)  # Adiciona o inimigo escalonado
 
+        # Dados para mini-chefes
+        tipos_mini_chefes_data = [
+            {'tipo': 'Ogro', 'vida': 200, 'ataque': 20, 'defesa': 10, 'xp': 70, 'ouro': 50, 'is_miniboss': True},
+            {'tipo': 'Lich', 'vida': 110, 'ataque': 30, 'defesa': 8, 'xp': 80, 'ouro': 60, 'is_miniboss': True}
+        ]
+
+        # Dados para chefão principal
+        chefao_principal_data = {
+            'tipo': 'Dragão', # Nome mais imponente
+            'vida': 300 * self.dungeon_nivel,
+            'ataque': 20 * self.dungeon_nivel,
+            'defesa': 15 * self.dungeon_nivel,
+            'xp': 200 * self.dungeon_nivel,
+            'ouro': 100 * self.dungeon_nivel,
+            'chefao': True
+        }
+
+        if tem_chefao_principal:
+            self.inimigos.append(self._criar_entidade(Enemy, chefao_principal_data, forcado=True))
+        elif tem_mini_chefao:
+            mini_chefao_data = random.choice(tipos_mini_chefes_data)
+            self.inimigos.append(self._criar_entidade(Enemy, mini_chefao_data, forcado=True))
+
+
+        # Geração de inimigos comuns
         for _ in range(5 + self.dungeon_nivel * 2):
             tipo_data = random.choice(tipos_inimigos_data)
             self.inimigos.append(self._criar_entidade(Enemy, tipo_data))
@@ -112,23 +142,34 @@ class GameMap:
             self.npcs.append(self._criar_entidade(NPC, mercador_data, x=salas[1]['x'] + 1, y=salas[1]['y'] + 1))
 
     def _criar_entidade(self, entity_class, dados, forcado=False, x=None, y=None):
-        while True:
+        tentativas = 0
+        max_tentativas = 100  # Evita loops infinitos
+
+        while tentativas < max_tentativas:
             if x is None or y is None:
-                pos_x, pos_y = random.randint(1, self.largura-2), random.randint(1, self.altura-2)
+                # Gera posições aleatórias dentro dos limites do mapa
+                pos_x = random.randint(1, self.largura - 2)
+                pos_y = random.randint(1, self.altura - 2)
             else:
                 pos_x, pos_y = x, y
 
+            # Verifica se a posição é válida:
+            # 1. É um chão ('.')? 
+            # 2. Não tem outra entidade?
             pos_valida = (
-                self.mapa[pos_y][pos_x] == '.' and
+                self.mapa[pos_y][pos_x] == '.' and  # Só spawna em chão
                 not any(e.x == pos_x and e.y == pos_y for e in self.inimigos) and
                 not any(i.x == pos_x and i.y == pos_y for i in self.itens) and
-                not any(n.x == pos_x and n.y == pos_y for n in self.npcs) or
-                forcado
+                not any(n.x == pos_x and n.y == pos_y for n in self.npcs)
             )
 
-            if pos_valida:
+            if pos_valida or forcado:  # 'forcado' ignora verificações (útil para chefões)
                 if entity_class == Enemy:
-                    entidade = Enemy(dados['tipo'], dados['vida'], dados['ataque'], dados['defesa'], dados['xp'], dados['ouro'], dados.get('chefao', False))
+                    entidade = Enemy(
+                        dados['tipo'], dados['vida'], dados['ataque'], 
+                        dados['defesa'], dados['xp'], dados['ouro'],
+                        dados.get('chefao', False), dados.get('is_miniboss', False)
+                    )
                 elif entity_class == Item:
                     entidade = Item(dados['tipo'], dados.get('quantidade', 1), dados.get('efeito'))
                 elif entity_class == NPC:
@@ -139,6 +180,12 @@ class GameMap:
                 entidade.x = pos_x
                 entidade.y = pos_y
                 return entidade
+
+            tentativas += 1
+
+        # Se não encontrar posição válida após muitas tentativas
+        print(f"[AVISO] Não foi possível gerar {dados['tipo']} em posição válida!")
+        return None
 
     def get_entities_at_position(self, x, y):
         inimigo = next((e for e in self.inimigos if e.x == x and e.y == y), None)
@@ -155,3 +202,4 @@ class GameMap:
         elif isinstance(entity, Item):
             if entity in self.itens:
              self.itens.remove(entity)
+

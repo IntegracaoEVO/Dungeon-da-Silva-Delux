@@ -13,25 +13,24 @@ class ShopSystem:
         ]
 
     def comprar_item(self, item_idx):
-        if 0 <= item_idx < len(self.loja_itens):
-            item = self.loja_itens[item_idx]
-
-            if self.player.ouro >= item.preco:
-                self.player.ouro -= item.preco
-                self.player.inventario[item.nome] += 1
-                self.log_mensagem(f"Comprou {item.nome} por {item.preco} de ouro!")
-                # Aplicar efeitos de equipamento imediatamente ou ao equipar
-                if item.tipo == 'equipamento':
-                    if item.ataque:
-                        self.player.ataque += item.ataque
-                    if item.defesa:
-                        self.player.defesa += item.defesa
-                    self.log_mensagem(f"{item.nome} equipado! Seus atributos foram atualizados.")
-            else:
-                self.log_mensagem("Ouro insuficiente!")
-        else:
+    # Verifica se o índice é válido
+        if item_idx < 0 or item_idx >= len(self.loja_itens):
             self.log_mensagem("Item inválido!")
+            return
 
-    def get_shop_items(self):
-        return self.loja_itens
+        item = self.loja_itens[item_idx]
 
+        if self.player.ouro >= item.preco:
+            self.player.ouro -= item.preco
+            self.player.inventario[item.nome] = self.player.inventario.get(item.nome, 0) + 1
+            self.log_mensagem(f"Comprou {item.nome} por {item.preco} de ouro!")
+            
+            # Aplica efeitos de equipamento (se for o caso)
+            if item.tipo == 'equipamento':
+                if item.ataque:
+                    self.player.ataque += item.ataque
+                if item.defesa:
+                    self.player.defesa += item.defesa
+                self.log_mensagem(f"{item.nome} equipado! Atributos atualizados.")
+        else:
+            self.log_mensagem("Ouro insuficiente!")

@@ -47,29 +47,13 @@ class JogoRPG:
 
     def _mostrar_loja(self):
         print("=== LOJA DO MERCADOR ===")
-        print(f"Seu ouro: {self.player.ouro}")
-    
-        itens = {
-            "1": {"nome": "Poção de Vida", "preco": 10, "tipo": "consumivel"},
-            "2": {"nome": "Poção de Ataque", "preco": 15, "tipo": "consumivel"},
-            "3": {"nome": "Pergaminho Mágico", "preco": 25, "tipo": "habilidade"}
-        }
-        
-        for cod, item in itens.items():
-            print(f"{cod}. {item['nome']} - {item['preco']} ouro")
-        
-            print("0. Sair")
-        
-        while True:
-            opcao = input("Escolha uma opção: ")
-            if opcao == '0':
-                print("Saindo da loja...")
-                break
-            elif opcao in itens:
-                self._comprar_item(itens[opcao])
-                break
-            else:
-                print("Opção inválida! Tente novamente.")
+        print(f"Seu ouro: {self.player.ouro}\n")
+
+        # Exibe os itens da loja
+        for idx, item in enumerate(self.shop_system.loja_itens, 1):
+            print(f"{idx}. {item.nome} - {item.preco} ouro")
+
+        print("\n0. Sair")  # Única opção de sair, fora do loop
 
 
     def _mostrar_mapa(self):
@@ -77,13 +61,11 @@ class JogoRPG:
         print(f"Vida: {self.player.vida}/{self.player.vida_max} | Nível: {self.player.nivel} | XP: {self.player.xp}/{self.player.nivel*100}")
         print(f"Ouro: {self.player.ouro} | Ataque: {self.player.ataque} | Defesa: {self.player.defesa}")
         print("WASD: Mover | E: Menu | Q: Sair | L: Loja (perto de mercador)")
-
         raio_visao = 10
         x_min = max(0, self.player.x - raio_visao)
         x_max = min(self.game_map.largura, self.player.x + raio_visao + 1)
         y_min = max(0, self.player.y - raio_visao//2)
         y_max = min(self.game_map.altura, self.player.y + raio_visao//2 + 1)
-
         for y in range(y_min, y_max):
             linha = ''
             for x in range(x_min, x_max):
@@ -92,9 +74,13 @@ class JogoRPG:
                 else:
                     celula = self.game_map.mapa[y][x]
                     inimigo, item, portal, npc = self.game_map.get_entities_at_position(x, y)
-
                     if inimigo:
-                        linha += 'E' if not inimigo.chefao else 'D'
+                        if inimigo.chefao:
+                            linha += 'D' # Chefão principal
+                        elif inimigo.is_miniboss:
+                            linha += 'B' # Mini-chefe (novo caractere)
+                        else:
+                            linha += 'E' # Inimigo comum
                     elif item:
                         linha += 'i'
                     elif portal:
@@ -104,10 +90,10 @@ class JogoRPG:
                     else:
                         linha += celula
             print(linha)
-
         print("\nMissões:")
         for missao in self.mission_system.get_active_missions():
             print(f"- {missao['objetivo']} ({missao['quantidade']}/{missao['alvo']})")
+
     
     def _mostrar_menu(self):
         print("=== MENU ===")
@@ -354,7 +340,7 @@ class JogoRPG:
             elif current_state == "loja":
                 if tecla == '0':
                     self.game_state.set_state("explorando")
-                elif tecla.isdigit() and 1 <= int(tecla) <= len(self.shop_system.get_shop_items()):
+                elif tecla.isdigit() and 1 <= int(tecla) <= len(self.shop_system.loja_itens):
                     self.shop_system.comprar_item(int(tecla)-1)
 
             elif current_state == "vitoria":
