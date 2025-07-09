@@ -11,6 +11,7 @@ from systems.mission_system import MissionSystem
 from systems.shop_system import ShopSystem
 from game_map import GameMap
 from game_state import GameState
+from systems.narrative_system import Narrative
 from menu import Menu # Importar a classe Menu
 
 
@@ -31,10 +32,17 @@ class JogoRPG:
         # self.game_map.gerar_dungeon(self.player) # Remova ou comente esta linha
     
     def iniciar_novo_jogo(self):
+            # Mostra a introdução
+        Narrative.mostrar_introducao()
+        
+        # Fornece os callbacks necessários
+        self.game_map.gerar_dungeon(self.player)
         self.player = Player() # Reinicia o jogador
         self.game_state = GameState() # Reinicia o estado do jogo
         self.game_map = GameMap(largura=50, altura=30) # Reinicia o mapa
         self.mission_system = MissionSystem(self.player, self.game_state.log_mensagem)
+        self.player.escolher_classe(self.game_state.log_mensagem, msvcrt.getch, os.system)
+        self.game_state.set_state("explorando")
         self.combat_system = CombatSystem(self.player, self.game_state.log_mensagem, self.game_over, self.mission_system.atualizar_missao)
         self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem)
         self.combat_system.game_map = self.game_map
@@ -174,7 +182,7 @@ class JogoRPG:
         print("3. Salvar Jogo") # Nova opção
         print("4. Voltar ao Menu Principal") # Nova opção
         if not self.player.classe:
-            print("6. Escolher Classe (uma vez)")
+            print("5. Escolher Classe (uma vez)")
         print("0. Voltar à Exploração") # Renomeado para clareza
 
 
@@ -196,14 +204,14 @@ class JogoRPG:
             'Goblin': [
                 "  G  ",
                 " /|\\ ",
-                " | | "
+                " | | " 
             ],
             'Orc': [
                 " _O_ ",
                 "| o |",
                 "|___|"
             ],
-            'Dragão': [
+            'Fantasma de Dragão': [
                 " .^. ",
                 "/O O\\",
                 " > < "

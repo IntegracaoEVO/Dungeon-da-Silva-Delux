@@ -89,24 +89,26 @@ class GameMap:
         # Dados para mini-chefes
         tipos_mini_chefes_data = [
             {'tipo': 'Ogro', 'vida': 200, 'ataque': 20, 'defesa': 10, 'xp': 70, 'ouro': 50, 'is_miniboss': True},
-            {'tipo': 'Lich', 'vida': 110, 'ataque': 30, 'defesa': 8, 'xp': 80, 'ouro': 60, 'is_miniboss': True}
+            {'tipo': 'Lich', 'vida': 85, 'ataque': 30, 'defesa': 8, 'xp': 80, 'ouro': 60, 'is_miniboss': True}
         ]
 
         # Dados para chefão principal
         chefao_principal_data = {
-            'tipo': 'Dragão', # Nome mais imponente
-            'vida': 300 * self.dungeon_nivel,
+            'tipo': 'Fantasma de Dragão', # Nome mais imponente
+            'vida': 350 * self.dungeon_nivel,
             'ataque': 20 * self.dungeon_nivel,
-            'defesa': 15 * self.dungeon_nivel,
+            'defesa': 12 * self.dungeon_nivel,
             'xp': 200 * self.dungeon_nivel,
             'ouro': 100 * self.dungeon_nivel,
             'chefao': True
         }
 
         if tem_chefao_principal:
+            # Passa forcado=True para permitir sobreposição de outras entidades, mas ainda verifica o chão
             self.inimigos.append(self._criar_entidade(Enemy, chefao_principal_data, forcado=True))
         elif tem_mini_chefao:
             mini_chefao_data = random.choice(tipos_mini_chefes_data)
+            # Passa forcado=True para permitir sobreposição de outras entidades, mas ainda verifica o chão
             self.inimigos.append(self._criar_entidade(Enemy, mini_chefao_data, forcado=True))
 
 
@@ -155,15 +157,22 @@ class GameMap:
 
             # Verifica se a posição é válida:
             # 1. É um chão ('.')? 
-            # 2. Não tem outra entidade?
-            pos_valida = (
-                self.mapa[pos_y][pos_x] == '.' and  # Só spawna em chão
-                not any(e.x == pos_x and e.y == pos_y for e in self.inimigos) and
-                not any(i.x == pos_x and i.y == pos_y for i in self.itens) and
-                not any(n.x == pos_x and n.y == pos_y for n in self.npcs)
+            # 2. Não tem outra entidade? (Esta verificação é ignorada se 'forcado' for True)
+            
+            # A posição DEVE ser um chão.
+            is_ground = self.mapa[pos_y][pos_x] == '.'
+
+            # Verifica se há outras entidades na posição, a menos que 'forcado' seja True
+            has_other_entity = (
+                any(e.x == pos_x and e.y == pos_y for e in self.inimigos) or
+                any(i.x == pos_x and i.y == pos_y for i in self.itens) or
+                any(n.x == pos_x and n.y == pos_y for n in self.npcs)
             )
 
-            if pos_valida or forcado:  # 'forcado' ignora verificações (útil para chefões)
+            # A posição é válida se for chão E (não houver outra entidade OU 'forcado' for True)
+            pos_valida = is_ground and (not has_other_entity or forcado)
+
+            if pos_valida:
                 if entity_class == Enemy:
                     entidade = Enemy(
                         dados['tipo'], dados['vida'], dados['ataque'], 
@@ -184,7 +193,7 @@ class GameMap:
             tentativas += 1
 
         # Se não encontrar posição válida após muitas tentativas
-        print(f"[AVISO] Não foi possível gerar {dados['tipo']} em posição válida!")
+        print(f"[AVISO] Não foi possível gerar {dados['tipo']} em posição válida após {max_tentativas} tentativas!")
         return None
 
     def get_entities_at_position(self, x, y):
@@ -202,4 +211,3 @@ class GameMap:
         elif isinstance(entity, Item):
             if entity in self.itens:
              self.itens.remove(entity)
-
