@@ -333,7 +333,7 @@ class JogoRPG:
         self.game_state.set_state("menu_principal")
         while True:
             self.mostrar_tela()
-            tecla = msvcrt.getch().decode('utf-8').lower()
+            tecla = msvcrt.getch().decode('latin-1').lower()
             if self.game_state.get_state() == "menu_principal":
                 if tecla == '1':
                     self.iniciar_novo_jogo()

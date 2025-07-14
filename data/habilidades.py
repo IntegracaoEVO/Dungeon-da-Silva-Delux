@@ -155,4 +155,11 @@ HABILIDADES_DATA = {
         'descricao': 'Cria um escudo que absorve parte do dano recebido.',
         'efeito_combate': '_aplicar_escudo_de_mana'
     },
+    'raio solar': {
+        'cooldown_max': 1,
+        'tipo': 'dano_cura',
+        'descricao': 'Causa dano ao inimigo e recupera parte da vida.',
+        'efeito_combate': '_aplicar_raio_solar'
+
+    }
 }
