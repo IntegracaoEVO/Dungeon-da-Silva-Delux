@@ -9,7 +9,7 @@ class ShopSystem:
             Item(nome='Poção de Ataque', preco=30, tipo='consumivel', efeito='ataque +5'),
             Item(nome='Espada de Ferro', preco=100, tipo='equipamento', ataque=5),
             Item(nome='Cajado velho', preco=250, tipo='equipamento', ataque=8),
-            Item(nome='Armadura de Couro', preco=80, tipo='equipamento', defesa=3)
+            Item(nome='Armadura de Couro', preco=80 + (self.dungeon_nivel * 1.2), tipo='equipamento', defesa=3)
         ]
 
     def comprar_item(self, item_idx):
