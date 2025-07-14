@@ -1,7 +1,7 @@
+# main.py
 import os
-import msvcrt # Para Windows. Para Linux/Mac, usar sys, tty, termios
+import msvcrt
 import sys
-# Importar classes modularizadas
 from entities.player import Player
 from entities.enemy import Enemy
 from entities.item import Item
@@ -12,55 +12,43 @@ from systems.shop_system import ShopSystem
 from game_map import GameMap
 from game_state import GameState
 from systems.narrative_system import Narrative
-from menu import Menu # Importar a classe Menu
-
+from menu import Menu
 
 class JogoRPG:
     def __init__(self):
         self.player = Player()
         self.game_state = GameState()
         self.game_map = GameMap(largura=50, altura=30)
-        # Inicializar sistemas, passando referências necessárias
         self.mission_system = MissionSystem(self.player, self.game_state.log_mensagem)
         self.combat_system = CombatSystem(self.player, self.game_state.log_mensagem, self.game_over, self.mission_system.atualizar_missao)
-        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem)
-    
-        # Adicione esta linha para passar a referência do game_map para o combat_system
+        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem, self.game_map) # Passe self.game_map aqui
         self.combat_system.game_map = self.game_map
-        # A geração da dungeon agora será chamada apenas no início de um novo jogo
-        # ou ao carregar um jogo.
-        # self.game_map.gerar_dungeon(self.player) # Remova ou comente esta linha
-    
+
     def iniciar_novo_jogo(self):
-            # Mostra a introdução
         Narrative.mostrar_introducao()
-        
-        # Fornece os callbacks necessários
-        self.game_map.gerar_dungeon(self.player)
-        self.player = Player() # Reinicia o jogador
-        self.game_state = GameState() # Reinicia o estado do jogo
-        self.game_map = GameMap(largura=50, altura=30) # Reinicia o mapa
+        self.player = Player()
+        self.game_state = GameState()
+        self.game_map = GameMap(largura=50, altura=30)
         self.mission_system = MissionSystem(self.player, self.game_state.log_mensagem)
         self.player.escolher_classe(self.game_state.log_mensagem, msvcrt.getch, os.system)
         self.game_state.set_state("explorando")
         self.combat_system = CombatSystem(self.player, self.game_state.log_mensagem, self.game_over, self.mission_system.atualizar_missao)
-        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem)
+        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem, self.game_map) # E aqui
         self.combat_system.game_map = self.game_map
-        self.game_map.gerar_dungeon(self.player) # Gera a primeira dungeon
+        self.game_map.gerar_dungeon(self.player)
         self.game_state.log_mensagem("Novo jogo iniciado!")
-    
+
     def carregar_jogo_salvo(self, jogo_carregado):
-        # Ao carregar, substituímos as instâncias atuais pelas carregadas
         self.player = jogo_carregado.player
         self.game_state = jogo_carregado.game_state
         self.game_map = jogo_carregado.game_map
-        # Re-inicializar sistemas com as referências carregadas
         self.mission_system = MissionSystem(self.player, self.game_state.log_mensagem)
         self.combat_system = CombatSystem(self.player, self.game_state.log_mensagem, self.game_over, self.mission_system.atualizar_missao)
-        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem)
-        self.combat_system.game_map = self.game_map # Garante que o combat_system tenha a referência correta do mapa
+        self.shop_system = ShopSystem(self.player, self.game_state.log_mensagem, self.game_map) # E aqui
+        self.combat_system.game_map = self.game_map
+        self.shop_system.atualizar_loja() # Atualiza os preços da loja ao carregar
         self.game_state.log_mensagem("Jogo carregado com sucesso!")
-        self.game_state.set_state("explorando") # Volta para o estado de exploração
+        self.game_state.set_state("explorando")
 
     def mostrar_tela(self):
         self.game_state.clear_screen()
@@ -74,7 +62,7 @@ class JogoRPG:
             self._mostrar_loja()
         elif self.game_state.get_state() == "vitoria":
             self._mostrar_vitoria()
-        elif self.game_state.get_state() == "menu_principal": # Novo estado para o menu principal
+        elif self.game_state.get_state() == "menu_principal":
             self._mostrar_menu_principal()
         self._mostrar_historico()
 
@@ -84,7 +72,7 @@ class JogoRPG:
         print("1. Começar Novo Jogo")
         print("2. Carregar Jogo")
         print("3. Sair")
-        print("\nEscolha uma opção: ") # A entrada será lida no loop principal
+        print("\nEscolha uma opção: ")
 
     def game_over(self):
         self.game_state.clear_screen()
@@ -94,7 +82,7 @@ class JogoRPG:
         while True:
             opcao = msvcrt.getch().decode('utf-8').lower()
             if opcao == 's':
-                self.iniciar_novo_jogo() # Chama o método para iniciar um novo jogo
+                self.iniciar_novo_jogo()
                 return
             elif opcao == 'n':
                 exit()
@@ -103,17 +91,16 @@ class JogoRPG:
         print("=== LOJA DO MERCADOR ===")
         print(f"Seu ouro: {self.player.ouro}\n")
 
-        # Exibe os itens da loja
         for idx, item in enumerate(self.shop_system.loja_itens, 1):
             print(f"{idx}. {item.nome} - {item.preco} ouro")
 
-        print("\n0. Sair")  # Única opção de sair, fora do loop
-
+        print("\n0. Sair")
 
     def _mostrar_mapa(self):
         print(f"=== Dungeon Nível {self.game_map.dungeon_nivel} ===")
         print(f"Vida: {self.player.vida}/{self.player.vida_max} | Nível: {self.player.nivel} | XP: {self.player.xp}/{self.player.nivel*100}")
         print(f"Ouro: {self.player.ouro} | Ataque: {self.player.ataque} | Defesa: {self.player.defesa}")
+        print(f"Precisão: {self.player.precisao}% | Esquiva: {self.player.esquiva}%") # Mostrar novos atributos
         print("WASD: Mover | E: Menu | Q: Sair | L: Loja (perto de mercador)")
         raio_visao = 10
         x_min = max(0, self.player.x - raio_visao)
@@ -130,11 +117,11 @@ class JogoRPG:
                     inimigo, item, portal, npc = self.game_map.get_entities_at_position(x, y)
                     if inimigo:
                         if inimigo.chefao:
-                            linha += 'D' # Chefão principal
+                            linha += 'D'
                         elif inimigo.is_miniboss:
-                            linha += 'B' # Mini-chefe (novo caractere)
+                            linha += 'B'
                         else:
-                            linha += 'E' # Inimigo comum
+                            linha += 'E'
                     elif item:
                         linha += 'i'
                     elif portal:
@@ -148,13 +135,13 @@ class JogoRPG:
         for missao in self.mission_system.get_active_missions():
             print(f"- {missao['objetivo']} ({missao['quantidade']}/{missao['alvo']})")
 
-    
     def _mostrar_menu(self):
         print("=== MENU ===")
         print(f"Classe: {self.player.classe or 'Nenhuma'}")
         print(f"Nível: {self.player.nivel} | XP: {self.player.xp}/{self.player.nivel*100}")
         print(f"Vida: {self.player.vida}/{self.player.vida_max} | Ouro: {self.player.ouro}")
         print(f"Ataque: {self.player.ataque} | Defesa: {self.player.defesa}")
+        print(f"Precisão: {self.player.precisao}% | Esquiva: {self.player.esquiva}%") # Mostrar novos atributos
 
         print("\n--- Habilidades ---")
         if not self.player.habilidades:
@@ -168,43 +155,45 @@ class JogoRPG:
         if not self.player.inventario:
             print("- Vazio")
         else:
-            # Filtra itens com quantidade maior que 0 para não mostrar itens "vazios"
             itens_no_inventario = {k: v for k, v in self.player.inventario.items() if v > 0}
             if not itens_no_inventario:
                 print("- Vazio")
             else:
                 for item, qtd in itens_no_inventario.items():
                     print(f"- {item}: {qtd}")
-                
+
+        print("\n--- Efeitos Ativos ---") # Mostrar efeitos ativos
+        if not self.player.efeitos_ativos:
+            print("- Nenhum efeito ativo.")
+        else:
+            for efeito_nome, dados_efeito in self.player.efeitos_ativos.items():
+                print(f"- {efeito_nome} (Turnos restantes: {dados_efeito['turnos_restantes']})")
+
         print("\n--- Opções ---")
         print("1. Usar Poção de Vida")
         print("2. Usar Poção de Ataque")
-        print("3. Salvar Jogo") # Nova opção
-        print("4. Voltar ao Menu Principal") # Nova opção
+        print("3. Salvar Jogo")
+        print("4. Voltar ao Menu Principal")
         if not self.player.classe:
             print("5. Escolher Classe (uma vez)")
-        print("0. Voltar à Exploração") # Renomeado para clareza
-
-
+        print("0. Voltar à Exploração")
 
     def _mostrar_combate(self):
         inimigo = self.combat_system.current_enemy
         if not inimigo:
             return
 
-        # Sprite do jogador (simplificado)
         player_sprite = [
             "  O  ",
             " /|\\ ",
             " / \\ "
         ]
-        
-        # Sprite do inimigo (varia por tipo)
+
         enemy_sprite = {
             'Goblin': [
                 "  G  ",
                 " /|\\ ",
-                " | | " 
+                " | | "
             ],
             'Orc': [
                 " _O_ ",
@@ -225,45 +214,47 @@ class JogoRPG:
                 "     ",
                 " ~~~ ",
                 "(o_o)"
+            ],
+            'Ogro':[ # Novo sprite
+                "  _  ",
+                " / \\ ",
+                "| O |"
+            ],
+            'Lich':[ # Novo sprite
+                "  ^  ",
+                " /_\\ ",
+                " | | "
             ]
         }
 
-        # Obter o sprite do inimigo com base no tipo
         enemy_sprite_lines = enemy_sprite.get(inimigo.tipo, [
             " ? ",
             "/|\\",
             " | "
         ])
 
-        # Barra de vida do jogador
         vida_jogador = f"Jogador: [{'#' * int(10 * self.player.vida/self.player.vida_max)}{' ' * (10 - int(10 * self.player.vida/self.player.vida_max))}] {self.player.vida}/{self.player.vida_max}"
-        
-        # Barra de vida do inimigo
         vida_inimigo = f"Inimigo: [{'#' * int(10 * inimigo.vida/inimigo.vida_max)}{' ' * (10 - int(10 * inimigo.vida/inimigo.vida_max))}] {inimigo.vida}/{inimigo.vida_max}"
 
-        # Exibir interface
         print("\n=== COMBATE ===")
         print("Jogador".center(20) + "VS".center(10) + inimigo.tipo.center(20))
-        
-        # Exibir sprites lado a lado
+
         for p_line, e_line in zip(player_sprite, enemy_sprite_lines):
             print(p_line.center(20) + "".center(10) + e_line.center(20))
-        
+
         print("\n" + vida_jogador)
         print(vida_inimigo + "\n")
-        
+
         print("\nAções:")
         print("1. Atacar")
         print("2. Usar Habilidade")
         print("3. Usar Item")
         print("4. Fugir (50% chance)")
 
-
     def _mostrar_vitoria(self):
         print("=== VITÓRIA EPICA ===")
         print(f"Parabéns! Você derrotou o chefão da dungeon nível {self.game_map.dungeon_nivel}!")
         print("\nRecompensas:")
-        # Acessa XP e Ouro do inimigo derrotado
         if self.combat_system.current_enemy:
             print(f"- {self.combat_system.current_enemy.xp} XP")
             print(f"- {self.combat_system.current_enemy.ouro} de ouro")
@@ -306,8 +297,7 @@ class JogoRPG:
 
         if inimigo:
             self.game_state.set_state(self.combat_system.iniciar_combate(inimigo))
-            # Reduzir cooldowns ao iniciar combate (opcional, dependendo da sua lógica de turno)
-            self.player.reduzir_cooldown() 
+            self.player.reduzir_cooldown(self.game_state.log_mensagem) # Passa log_mensagem
             return
         elif item:
             self.player.coletar_item(item, self.game_state.log_mensagem, self.mission_system.atualizar_missao)
@@ -318,14 +308,12 @@ class JogoRPG:
             self.game_map.dungeon_nivel += 1
             self.game_state.log_mensagem(f"Descendo para a dungeon nível {self.game_map.dungeon_nivel}...")
             self.game_map.gerar_dungeon(self.player)
-            # Reduzir cooldowns ao mudar de nível (opcional)
-            self.player.reduzir_cooldown()
+            self.shop_system.atualizar_loja() # Atualiza os preços da loja ao mudar de dungeon
+            self.player.reduzir_cooldown(self.game_state.log_mensagem) # Passa log_mensagem
             return
 
         self.player.x, self.player.y = novo_x, novo_y
-        # Reduzir cooldowns a cada movimento (se quiser um cooldown baseado em "passos")
-        # self.player.reduzir_cooldown()
-
+        self.player.reduzir_cooldown(self.game_state.log_mensagem) # Passa log_mensagem
 
     def game_over(self):
         self.game_state.clear_screen()
@@ -336,14 +324,13 @@ class JogoRPG:
         while True:
             opcao = msvcrt.getch().decode('utf-8').lower()
             if opcao == 's':
-                self.__init__()  # Reinicia o jogo
+                self.__init__()
                 return
             elif opcao == 'n':
                 exit()
 
     def run(self):
-        # Define o estado inicial como menu principal
-        self.game_state.set_state("menu_principal") 
+        self.game_state.set_state("menu_principal")
         while True:
             self.mostrar_tela()
             tecla = msvcrt.getch().decode('utf-8').lower()
@@ -357,12 +344,12 @@ class JogoRPG:
                         self.carregar_jogo_salvo(jogo_carregado)
                     else:
                         self.game_state.log_mensagem("Falha ao carregar o jogo.")
-                elif tecla == '3' or tecla == 'q': # 'q' também para sair do menu principal
+                elif tecla == '3' or tecla == 'q':
                     print("Saindo do jogo...")
                     break
                 else:
                     self.game_state.log_mensagem("Opção inválida no menu principal!")
-                continue # Continua o loop para reexibir o menu principal ou ir para exploração
+                continue
             if tecla == 'q':
                 print("Saindo do jogo...")
                 break
@@ -385,7 +372,7 @@ class JogoRPG:
                 elif tecla == 'd':
                     self.mover_jogador('direita')
             elif current_state == "combate":
-                self.player.reduzir_cooldown() 
+                self.player.reduzir_cooldown(self.game_state.log_mensagem) # Passa log_mensagem
                 if tecla == '1':
                     new_state = self.combat_system.resolver_combate_acao('atacar')
                     self.game_state.set_state(new_state)
@@ -408,11 +395,11 @@ class JogoRPG:
                 elif tecla == '5' and not self.player.classe:
                     self.player.escolher_classe(self.game_state.log_mensagem, msvcrt.getch, os.system)
                     self.game_state.set_state("explorando")
-                elif tecla == '3': # Nova opção para salvar o jogo
-                    Menu.salvar_jogo(self) # Passa a própria instância do jogo para ser salva
+                elif tecla == '3':
+                    Menu.salvar_jogo(self)
                     self.game_state.log_mensagem("Jogo salvo!")
-                    self.game_state.set_state("explorando") # Volta para exploração após salvar
-                elif tecla == '4': # Nova opção para voltar ao menu principal
+                    self.game_state.set_state("explorando")
+                elif tecla == '4':
                     self.game_state.set_state("menu_principal")
             elif current_state == "loja":
                 if tecla == '0':
@@ -423,7 +410,6 @@ class JogoRPG:
                 self.game_state.set_state("explorando")
 
     def _menu_habilidades_combate(self):
-        # Pega apenas os nomes das habilidades para exibir no menu de seleção
         habilidades_nomes = list(self.player.habilidades.keys())
 
         if not habilidades_nomes:
@@ -433,10 +419,9 @@ class JogoRPG:
         while True:
             self.game_state.clear_screen()
             print("=== HABILIDADES ===")
-            # Exibe o nome da habilidade e o cooldown
             for idx, nome_hab in enumerate(habilidades_nomes, 1):
                 dados_hab = self.player.habilidades[nome_hab]
-                cooldown_info = f" (CD: {dados_hab['cooldown']})" if dados_hab['cooldown'] > 0 else ""
+                cooldown_info = f" (CD: {dados_hab['cooldown']}/{dados_hab['cooldown_max']})" if dados_hab['cooldown_max'] > 0 else ""
                 print(f"{idx}. {nome_hab}{cooldown_info}")
             print("0. Voltar")
 
@@ -446,21 +431,17 @@ class JogoRPG:
                 break
             elif opcao.isdigit() and 1 <= int(opcao) <= len(habilidades_nomes):
                 habilidade_selecionada_nome = habilidades_nomes[int(opcao)-1]
-                
-                # Verifica se a habilidade pode ser usada (cooldown)
+
                 if self.player.pode_usar_habilidade(habilidade_selecionada_nome):
                     new_state = self.combat_system.aplicar_habilidade(habilidade_selecionada_nome)
-                    # Se a habilidade foi usada com sucesso, aplica o cooldown
-                    if new_state == "combate" or new_state == "explorando" or new_state == "vitoria": # Habilidade resultou em um estado válido
-                        self.player.usar_habilidade(habilidade_selecionada_nome) # Aplica o cooldown
+                    if new_state == "combate" or new_state == "explorando" or new_state == "vitoria":
+                        self.player.usar_habilidade(habilidade_selecionada_nome)
                     self.game_state.set_state(new_state)
                     break
                 else:
                     self.game_state.log_mensagem(f"{habilidade_selecionada_nome} está em cooldown! ({self.player.habilidades[habilidade_selecionada_nome]['cooldown']} turnos restantes)")
-                    # Não quebra o loop, permite que o jogador escolha outra habilidade ou volte
             else:
                 self.game_state.log_mensagem("Opção inválida!")
-
 
     def _menu_itens_combate(self):
         if not any(qtd > 0 for qtd in self.player.inventario.values()):
@@ -489,4 +470,3 @@ class JogoRPG:
 if __name__ == "__main__":
     game = JogoRPG()
     game.run()
-
